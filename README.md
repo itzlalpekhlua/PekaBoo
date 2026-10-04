@@ -7,6 +7,11 @@ A cosy hide-and-seek game for two, made with Godot 4 for Android — by **RubinB
 - **Chill mode 🌙**: the house at night with candles, fairy lights, a picnic under the stars, love songs, kissing, hugging, slow dancing, holding hands, sky lanterns, fireworks, sky messages, stargazing, a rooftop deck, a garden swing, pets, cooking together, pillow fights, selfies, rain and snow.
 - Anniversary surprise every **2 February**.
 
+## Downloads
+
+Public download page (Android, Windows, Linux): https://github.com/void193/PekaBoo-download
+Build the public downloads (without the Arijit songs) with `./release.sh`.
+
 ## Building
 
 1. Install Godot 4.4 with the Android export templates, the Android SDK and a JDK (the build script expects them in `~/gamedev-tools`).

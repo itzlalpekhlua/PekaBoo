@@ -13,3 +13,6 @@ KEYSTORE-README.txt
 # raw downloads used to make the game's assets (large, re-downloadable)
 raw/
 assets-src/
+
+# the public download page is its own repo
+download-page/

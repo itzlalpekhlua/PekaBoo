@@ -37,7 +37,7 @@ func _ready() -> void:
 	if d:
 		for f in d.get_files():
 			f = f.trim_suffix(".import").trim_suffix(".remap")
-			if f.ends_with(".ogg") and not songs.has(f):
+			if f.ends_with(".ogg") and not songs.has(f) and ResourceLoader.exists("res://assets/songs/" + f):
 				songs.append(f)
 	songs.sort()
 
@@ -57,6 +57,8 @@ func _file_for(mood: String) -> String:
 ## Chill mode: play song i (both phones are told the same i, so they hear the same thing).
 func play_song(i: int, fade := 1.2) -> void:
 	if songs.is_empty():
+		# a build without the love songs: soft game music instead
+		play("menu", fade)
 		return
 	current = "songs"
 	_song_i = posmod(i, songs.size())
