@@ -1,0 +1,15 @@
+# Godot cache (rebuilt automatically)
+game/.godot/
+*.tmp
+
+# build output (the APK is ~240 MB, over GitHub's file limit)
+build/
+
+# signing keys and their password - keep these backed up somewhere safe, never in git
+*.keystore
+*.jks
+KEYSTORE-README.txt
+
+# raw downloads used to make the game's assets (large, re-downloadable)
+raw/
+assets-src/
