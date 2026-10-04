@@ -2421,6 +2421,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 		match ev.physical_keycode:
 			KEY_ESCAPE:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			KEY_F11:
+				var full := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if full else DisplayServer.WINDOW_MODE_FULLSCREEN)
 			KEY_SPACE:
 				me.jump_req = true
 			KEY_C, KEY_CTRL:
