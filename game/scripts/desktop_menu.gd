@@ -25,13 +25,12 @@ static func build(u: UI) -> void:
 	logo.texture = load("res://assets/branding/pekaboo_logo.png")
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.custom_minimum_size = Vector2(316, 280)
+	logo.custom_minimum_size = Vector2(400, 286)
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var logo_plate := PanelContainer.new()
-	logo_plate.add_theme_stylebox_override("panel", u._box(Color("#fdf8e9"), 22, 12))
-	logo_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	logo_plate.add_child(logo)
-	brand.add_child(logo_plate)
+	var logo_material := ShaderMaterial.new()
+	logo_material.shader = load("res://assets/branding/menu_logo.gdshader")
+	logo.material = logo_material
+	brand.add_child(logo)
 	brand.add_child(u._label("A little mischief. A lot of memories.", 21, Color("#eddbf9")))
 	var foot := VBoxContainer.new()
 	foot.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
