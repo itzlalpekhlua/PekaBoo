@@ -4,7 +4,7 @@ extends Node
 signal message(m: Dictionary)
 signal disconnected(reason: String)
 
-const DEFAULT_SERVER := "ws://127.0.0.1:8787"
+const DEFAULT_SERVER := "ws://3.109.56.218:8787"
 
 var server_url := DEFAULT_SERVER
 var ws: WebSocketPeer
@@ -16,6 +16,8 @@ var players := {}  # int id -> {name, color}
 var _first := {}
 var _t := 0.0
 var connect_timeout := 90.0
+var latency_ms := -1
+var _ping_sent_ms := -1
 
 
 func _ready() -> void:
@@ -61,6 +63,8 @@ func open(first: Dictionary) -> void:
 
 
 func close() -> void:
+	latency_ms = -1
+	_ping_sent_ms = -1
 	if ws != null and state != "idle" and state != "offline":
 		ws.close()
 	state = "idle"
@@ -104,8 +108,12 @@ func _process(dt: float) -> void:
 				var m = JSON.parse_string(ws.get_packet().get_string_from_utf8())
 				if m is Dictionary:
 					_handle(m)
-			if _t > 15.0:
+			if _ping_sent_ms >= 0 and Time.get_ticks_msec() - _ping_sent_ms > 5000:
+				latency_ms = -1
+				_ping_sent_ms = -1
+			if _t > 2.0 and _ping_sent_ms < 0:
 				_t = 0.0
+				_ping_sent_ms = Time.get_ticks_msec()
 				send({"t": "ping"})
 		WebSocketPeer.STATE_CLOSED:
 			var was_in := my_id >= 0
@@ -134,6 +142,9 @@ func _handle(m: Dictionary) -> void:
 			disconnected.emit(reason)
 			return
 		"pong":
+			if _ping_sent_ms >= 0:
+				latency_ms = maxi(0, Time.get_ticks_msec() - _ping_sent_ms)
+				_ping_sent_ms = -1
 			return
 	if m.has("from"):
 		m["from"] = int(m["from"])

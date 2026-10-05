@@ -87,6 +87,7 @@ var main_id := ""
 var alt_btn: Button
 var alt_id := ""
 var fps_label: Label
+var latency_label: Label
 var fps_btn: Button
 var music_btn: Button
 var _last_flags := ""
@@ -310,6 +311,18 @@ func _build_menu() -> void:
 	lan_tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(lan_tip)
 	code_edit = _edit("Room code", 4)
+	v.add_child(code_edit)
+	var online_row := HBoxContainer.new()
+	online_row.add_theme_constant_override("separation", 10)
+	v.add_child(online_row)
+	var online_host := _btn("Host online", PINK, Vector2(0, 58), 24)
+	online_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	online_host.pressed.connect(func(): create_room.emit(_name(), char_idx, settings["server"]))
+	online_row.add_child(online_host)
+	var online_join := _btn("Join online", BLUE, Vector2(0, 58), 24)
+	online_join.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	online_join.pressed.connect(func(): join_room.emit(code_edit.text.strip_edges().to_upper(), _name(), char_idx, settings["server"]))
+	online_row.add_child(online_join)
 	var bot_row := HBoxContainer.new()
 	bot_row.add_theme_constant_override("separation", 10)
 	v.add_child(bot_row)
@@ -1078,6 +1091,13 @@ func _build_hud(_chat_lines: Array, _emotes: Array) -> void:
 	fps_label.position += Vector2(-20, 16)
 	fps_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(fps_label)
+	latency_label = _outlined(_label("", 20, Color("#b9ffb0")), 8)
+	latency_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	latency_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	latency_label.position += Vector2(-20, 84)
+	latency_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	latency_label.visible = false
+	root.add_child(latency_label)
 
 	# top-right: two tidy buttons that open card panels (Tools for your role, Pranks for fun)
 	var top_right := HBoxContainer.new()
@@ -1481,6 +1501,9 @@ func _process(dt: float) -> void:
 			radar.visible = false
 	if fps_label.visible and Engine.get_process_frames() % 20 == 0:
 		fps_label.text = "%d FPS" % Engine.get_frames_per_second()
+	latency_label.visible = Net.state == "open"
+	if latency_label.visible:
+		latency_label.text = "Ping: %d ms" % Net.latency_ms if Net.latency_ms >= 0 else "Ping: measuring…"
 	if _toast_t > 0.0:
 		_toast_t -= dt
 		toast_label.modulate.a = clampf(_toast_t * 2.0, 0.0, 1.0)
