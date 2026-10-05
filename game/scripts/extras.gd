@@ -699,7 +699,8 @@ func set_weather(w: String) -> void:
 func _make_precip(snow: bool) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.emitting = false
-	p.amount = 260 if not snow else 220
+	# Weather follows the camera, so a dense full-lot system wastes CPU time.
+	p.amount = (170 if not snow else 145) if main.is_touch else (260 if not snow else 220)
 	p.lifetime = 1.1 if not snow else 7.0
 	p.preprocess = 1.0 if not snow else 6.0
 	p.local_coords = false

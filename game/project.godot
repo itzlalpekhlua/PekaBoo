@@ -9,9 +9,10 @@ config/version="1.0.0"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.4", "Mobile")
 config/icon="res://icon.png"
-boot_splash/bg_color=Color(0.35, 0.06, 0.56, 1)
-boot_splash/image="res://splash.png"
-boot_splash/fullsize=true
+config/windows_native_icon="res://icon.ico"
+boot_splash/bg_color=Color(0.9922, 0.9725, 0.9137, 1)
+boot_splash/image="res://desktop_splash.png"
+boot_splash/fullsize=false
 boot_splash/use_filter=true
 
 [autoload]
@@ -52,3 +53,14 @@ environment/defaults/default_clear_color=Color(0.55, 0.75, 0.95, 1)
 3d/default_cell_size=0.1
 3d/default_cell_height=0.1
 3d/merge_rasterizer_cell_scale=0.001
+
+[shader_globals]
+
+pekaboo_night_time={
+"type": "float",
+"value": 0.0
+}
+shoot_t={
+"type": "float",
+"value": -1.0
+}

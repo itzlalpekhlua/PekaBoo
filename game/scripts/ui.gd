@@ -87,6 +87,7 @@ var main_id := ""
 var alt_btn: Button
 var alt_id := ""
 var fps_label: Label
+var latency_label: Label
 var fps_btn: Button
 var music_btn: Button
 var _last_flags := ""
@@ -164,14 +165,17 @@ func _style_btn(b: Button, c: Color, r := 22) -> void:
 	b.add_theme_stylebox_override("hover", _box(c.lightened(0.12), r))
 	b.add_theme_stylebox_override("pressed", _box(c.darkened(0.2), r))
 	b.add_theme_stylebox_override("disabled", _box(Color(c.r, c.g, c.b, 0.35), r))
-	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	var focus := _box(Color(0, 0, 0, 0), r)
+	focus.border_color = Color("#ffe3ef")
+	focus.set_border_width_all(2)
+	b.add_theme_stylebox_override("focus", focus)
 
 
 func _btn(text: String, c: Color, min_size := Vector2(0, 64), fs := 26, r := 22) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = min_size
-	b.focus_mode = Control.FOCUS_NONE
+	b.focus_mode = Control.FOCUS_NONE if OS.has_feature("mobile") else Control.FOCUS_ALL
 	_style_btn(b, c, r)
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
 		b.add_theme_color_override(k, Color.WHITE)
@@ -252,102 +256,14 @@ func _round_btn(text: String, c: Color, d: float, fs := 26) -> Button:
 # ---------- menu ----------
 
 func _build_menu() -> void:
-	menu = Control.new()
-	menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.add_child(menu)
-	# left half stays clear so the character preview shows behind it
-	var shade := ColorRect.new()
-	shade.color = Color(0.1, 0.06, 0.14, 0.25)
-	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	menu.add_child(shade)
-	var side := Control.new()
-	side.set_anchors_preset(Control.PRESET_FULL_RECT)
-	side.anchor_left = 0.42
-	side.offset_left = 0
-	menu.add_child(side)
-	var v := _centered_scroll(side)
+	if not OS.has_feature("mobile"):
+		load("res://scripts/desktop_menu.gd").build(self)
+	else:
+		_build_touch_menu()
 
-	var title := _label("PekaBoo", 66, PINK)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(title)
-	var sub := _label("Hide & seek for two 💕", 22, MUTED)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(sub)
-	name_edit = _edit("Your name", 14)
-	v.add_child(name_edit)
-	var crow := HBoxContainer.new()
-	crow.add_theme_constant_override("separation", 10)
-	v.add_child(crow)
-	var prev := _btn("◀", PURPLE, Vector2(70, 60), 28)
-	prev.pressed.connect(func(): _cycle_char(-1))
-	crow.add_child(prev)
-	char_label = _label("", 24, INK)
-	char_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	char_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	char_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	crow.add_child(char_label)
-	var nxt := _btn("▶", PURPLE, Vector2(70, 60), 28)
-	nxt.pressed.connect(func(): _cycle_char(1))
-	crow.add_child(nxt)
-	var wb := _btn("👗", PINK, Vector2(70, 60), 28)
-	wb.pressed.connect(open_wardrobe)
-	crow.add_child(wb)
 
-	# play together on a hotspot / Wi-Fi: one phone hosts, the other joins
-	var lan_row := HBoxContainer.new()
-	lan_row.add_theme_constant_override("separation", 10)
-	v.add_child(lan_row)
-	var host_b := _btn("📶 Host a game", PINK, Vector2(0, 76), 28)
-	host_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	host_b.pressed.connect(func(): lan_host.emit(_name(), char_idx))
-	lan_row.add_child(host_b)
-	var find_b := _btn("🔎 Join a game", BLUE, Vector2(0, 76), 28)
-	find_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	find_b.pressed.connect(func(): lan_find.emit(_name(), char_idx))
-	lan_row.add_child(find_b)
-	var lan_tip := _label("Same hotspot or Wi-Fi. No internet needed.", 18, MUTED)
-	lan_tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(lan_tip)
-	code_edit = _edit("Room code", 4)
-	var bot_row := HBoxContainer.new()
-	bot_row.add_theme_constant_override("separation", 10)
-	v.add_child(bot_row)
-	var bl := _label("🤖 Practice:", 22, MUTED)
-	bl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	bot_row.add_child(bl)
-	var bh := _btn("🙈 I hide", ORANGE, Vector2(0, 58), 22)
-	bh.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bh.pressed.connect(func(): play_bot.emit(_name(), char_idx, "hide"))
-	bot_row.add_child(bh)
-	var bs := _btn("👀 I seek", ORANGE, Vector2(0, 58), 22)
-	bs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bs.pressed.connect(func(): play_bot.emit(_name(), char_idx, "seek"))
-	bot_row.add_child(bs)
-	var row2 := HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 10)
-	v.add_child(row2)
-	var explore_b := _btn("Explore alone", PURPLE, Vector2(0, 58), 24)
-	explore_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	explore_b.pressed.connect(func(): explore.emit(_name(), char_idx))
-	row2.add_child(explore_b)
-	var chill_b := _btn("🌙 Chill", Color("#5b3a8c"), Vector2(150, 58), 24)
-	chill_b.pressed.connect(func(): chill_solo.emit(_name(), char_idx))
-	row2.add_child(chill_b)
-	var set_b := _btn("⚙ Settings", Color("#6f6478"), Vector2(190, 58), 24)
-	set_b.pressed.connect(open_settings)
-	row2.add_child(set_b)
-	var by := _label("made with 💜 by RubinBastakoti", 15, MUTED)
-	by.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(by)
-	anniv_label = _label("", 19, Color("#8a5fb8"))
-	anniv_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(anniv_label)
-	status_label = _label("", 22, Color("#c0392b"))
-	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status_label.custom_minimum_size = Vector2(520, 0)
-	v.add_child(status_label)
+func _build_touch_menu() -> void:
+	load("res://scripts/desktop_menu.gd").build(self, true)
 
 
 # ---------- "nearby games" panel ----------
@@ -1078,6 +994,13 @@ func _build_hud(_chat_lines: Array, _emotes: Array) -> void:
 	fps_label.position += Vector2(-20, 16)
 	fps_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(fps_label)
+	latency_label = _outlined(_label("", 20, Color("#b9ffb0")), 8)
+	latency_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	latency_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	latency_label.position += Vector2(-20, 84)
+	latency_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	latency_label.visible = false
+	root.add_child(latency_label)
 
 	# top-right: two tidy buttons that open card panels (Tools for your role, Pranks for fun)
 	var top_right := HBoxContainer.new()
@@ -1481,6 +1404,9 @@ func _process(dt: float) -> void:
 			radar.visible = false
 	if fps_label.visible and Engine.get_process_frames() % 20 == 0:
 		fps_label.text = "%d FPS" % Engine.get_frames_per_second()
+	latency_label.visible = Net.state == "open"
+	if latency_label.visible:
+		latency_label.text = "Ping: %d ms" % Net.latency_ms if Net.latency_ms >= 0 else "Ping: measuring…"
 	if _toast_t > 0.0:
 		_toast_t -= dt
 		toast_label.modulate.a = clampf(_toast_t * 2.0, 0.0, 1.0)
@@ -1537,6 +1463,7 @@ func _build_wardrobe() -> void:
 
 
 func open_wardrobe() -> void:
+	root.move_child(wardrobe.get_parent(), -1)
 	wardrobe.visible = true
 
 

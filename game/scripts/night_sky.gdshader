@@ -2,8 +2,10 @@ shader_type sky;
 // Chill mode sky: deep blue-violet night, twinkling stars, a soft moon with a halo,
 // a faint milky band and a shooting star whenever the script sets shoot_t.
 
+global uniform float pekaboo_night_time;
+
 uniform vec3 moon_dir = vec3(-0.5, 0.62, -0.6);
-uniform float shoot_t = -1.0;            // 0..1 while a shooting star crosses, else < 0
+global uniform float shoot_t;            // 0..1 while a shooting star crosses, else < 0
 uniform vec3 shoot_from = vec3(-0.6, 0.55, -0.55);
 uniform vec3 shoot_to = vec3(0.1, 0.35, -0.9);
 uniform sampler2D star_tex : filter_linear_mipmap; // stars drawn once by the script (rgb + twinkle phase in a)
@@ -37,7 +39,7 @@ void sky() {
 	col += vec3(0.09, 0.07, 0.14) * band * smoothstep(0.0, 0.3, up);
 	// stars: one look-up in a picture drawn at start-up (much cheaper than working them out)
 	vec4 st = texture(star_tex, SKY_COORDS);
-	float tw = 0.6 + 0.4 * sin(TIME * (1.5 + st.a * 3.0) + st.a * 40.0);
+	float tw = 0.6 + 0.4 * sin(pekaboo_night_time * (1.5 + st.a * 3.0) + st.a * 40.0);
 	col += st.rgb * tw * 2.4 * smoothstep(0.02, 0.2, up) * (1.0 + band * 0.6);
 	// moon + halo
 	float md_dot = dot(d, moon_dir);
@@ -63,7 +65,7 @@ void sky() {
 	}
 	// clouds for rain / snow: hide the stars, soft grey-violet overcast
 	if (cloud > 0.001) {
-		float puff = 0.5 + 0.25 * sin(d.x * 7.0 + d.z * 5.0 + TIME * 0.05) + 0.25 * sin(d.z * 11.0 - d.x * 4.0);
+		float puff = 0.5 + 0.25 * sin(d.x * 7.0 + d.z * 5.0 + pekaboo_night_time * 0.05) + 0.25 * sin(d.z * 11.0 - d.x * 4.0);
 		col = mix(col, mix(vec3(0.07, 0.065, 0.1), vec3(0.15, 0.14, 0.2), puff) * (0.6 + 0.4 * up), cloud * 0.88);
 	}
 	COLOR = col;
