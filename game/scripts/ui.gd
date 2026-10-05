@@ -279,8 +279,11 @@ func _build_touch_menu() -> void:
 	menu.add_child(side)
 	var v := _centered_scroll(side)
 
-	var title := _label("PekaBoo", 66, PINK)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var title := TextureRect.new()
+	title.texture = load("res://assets/branding/pekaboo_logo.png")
+	title.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	title.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	title.custom_minimum_size = Vector2(0, 210)
 	v.add_child(title)
 	var sub := _label("Hide & seek for two 💕", 22, MUTED)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

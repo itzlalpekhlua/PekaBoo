@@ -40,6 +40,14 @@ func run() -> void:
 	await frames(4)
 	var u: UI = m.ui
 	var controls: RefCounted = m.desktop_controls
+	if "--mobile-preview" in OS.get_cmdline_user_args():
+		u.menu.queue_free()
+		u._build_touch_menu()
+		u.show_menu("Player", 0)
+		await frames(4)
+		await screenshot("menu-android-layout")
+		get_tree().quit()
+		return
 	await screenshot("menu-nearby")
 	m._start_warmup()
 	await frames(2)

@@ -21,7 +21,17 @@ static func build(u: UI) -> void:
 	brand.add_theme_constant_override("separation", 2)
 	u.menu.add_child(brand)
 	brand.add_child(u._label("READY OR NOT…", 17, Color("#e3c6f7")))
-	brand.add_child(u._outlined(u._label("PekaBoo", 100, Color("#fff7ef")), 2))
+	var logo := TextureRect.new()
+	logo.texture = load("res://assets/branding/pekaboo_logo.png")
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.custom_minimum_size = Vector2(316, 280)
+	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var logo_plate := PanelContainer.new()
+	logo_plate.add_theme_stylebox_override("panel", u._box(Color("#fdf8e9"), 22, 12))
+	logo_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	logo_plate.add_child(logo)
+	brand.add_child(logo_plate)
 	brand.add_child(u._label("A little mischief. A lot of memories.", 21, Color("#eddbf9")))
 	var foot := VBoxContainer.new()
 	foot.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
