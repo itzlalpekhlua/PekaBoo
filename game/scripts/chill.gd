@@ -30,6 +30,9 @@ var _fw_queue: Array = []  # [time, pos, color]
 var _fw_t := 0.0
 var _bars: Array = []      # cinema bars
 var _glow_tex: ImageTexture
+var _budget: RefCounted = preload("res://scripts/chill_budget.gd").new()
+var _static_batch_count := 0
+var _flame_batch_count := 0
 
 
 func setup(m: Node, h: House) -> void:
@@ -61,11 +64,14 @@ func enter() -> void:
 	var env: Environment = main.env
 	_saved = {"sky": env.sky.sky_material, "glow": env.glow_enabled, "sat": env.adjustment_saturation, "con": env.adjustment_contrast,
 		"exp": env.tonemap_exposure, "amb": env.ambient_light_energy, "amb_src": env.ambient_light_source,
-		"refl": env.reflected_light_source, "proc": env.sky.process_mode}
+		"refl": env.reflected_light_source, "proc": env.sky.process_mode, "radiance": env.sky.radiance_size}
 	# the night sky twinkles every frame; don't rebuild sky lighting from it (nothing here uses it)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+	# Animate through global uniforms: they update the visible sky without
+	# dirtying its unused reflection map every frame. Baked lighting stays intact.
 	env.sky.process_mode = Sky.PROCESS_MODE_QUALITY
+	env.sky.radiance_size = Sky.RADIANCE_SIZE_32
 	if _sky_mat == null:
 		_sky_mat = ShaderMaterial.new()
 		_sky_mat.shader = load("res://scripts/night_sky.gdshader")
@@ -81,6 +87,8 @@ func enter() -> void:
 	if _decor == null:
 		_build_decor()
 	_decor.visible = true
+	_decor.process_mode = Node.PROCESS_MODE_INHERIT
+	_budget.reset(main.get_viewport(), main.is_touch)
 	_relight()
 	Sfx.night = true
 	# the host (or you alone) picks the song and tells both phones; the other waits for it
@@ -90,6 +98,8 @@ func enter() -> void:
 	if _song_leader():
 		main.send_song(randi() % maxi(1, Music.songs.size()))
 	_next_star = 12.0
+	_shoot = -1.0
+	RenderingServer.global_shader_parameter_set("shoot_t", -1.0)
 	pending.clear()
 	asked.clear()
 
@@ -127,10 +137,12 @@ func exit() -> void:
 	env.ambient_light_source = _saved.get("amb_src", Environment.AMBIENT_SOURCE_SKY)
 	env.reflected_light_source = _saved.get("refl", Environment.REFLECTION_SOURCE_SKY)
 	env.sky.process_mode = _saved.get("proc", Sky.PROCESS_MODE_AUTOMATIC)
+	env.sky.radiance_size = _saved.get("radiance", Sky.RADIANCE_SIZE_64)
 	if main.sun:
 		main.sun.visible = true
 	if _decor:
 		_decor.visible = false
+		_decor.process_mode = Node.PROCESS_MODE_DISABLED
 	_relight()
 	for l in _lanterns:
 		(l[0] as Node).queue_free()
@@ -245,6 +257,90 @@ func _build_decor() -> void:
 	_picnic()
 	_petals()
 	_fireflies()
+	_batch_flames()
+	_batch_static_decor()
+
+
+func _batch_flames() -> void:
+	var groups := {}
+	for flame in _flames.duplicate():
+		if (flame[0] as Node).get_parent() != _decor:
+			continue  # anniversary candles have their own lifetime
+		for kind in 2:
+			var source: MeshInstance3D = flame[kind]
+			var p := source.position
+			var key := "%d:%d:%d:%d" % [kind, floori(p.x / 8.0), floori(p.y / 4.0), floori(p.z / 8.0)]
+			if not groups.has(key):
+				groups[key] = {"kind": kind, "items": []}
+			groups[key]["items"].append([p, (source.mesh as QuadMesh).size, flame[2]])
+			_decor.remove_child(source)
+			source.queue_free()
+		_flames.erase(flame)
+	for key in groups:
+		var group: Dictionary = groups[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE
+		mm.mesh = quad
+		mm.instance_count = group["items"].size()
+		for i in mm.instance_count:
+			var item: Array = group["items"][i]
+			mm.set_instance_transform(i, Transform3D(Basis(), item[0]))
+			mm.set_instance_custom_data(i, Color(item[2], item[1].x, item[1].y, 1.0))
+		var material := ShaderMaterial.new()
+		material.shader = preload("res://scripts/candle_batch.gdshader")
+		material.set_shader_parameter("glow_texture", _glow_texture())
+		material.set_shader_parameter("halo", group["kind"] == 1)
+		material.set_shader_parameter("tint", Vector3(0.4, 0.22, 0.088) if group["kind"] == 1 else Vector3(1.0, 0.78, 0.4))
+		material.set_shader_parameter("brightness", 1.0)
+		var batch := MultiMeshInstance3D.new()
+		batch.name = "CandleGlowBatch"
+		batch.multimesh = mm
+		batch.material_override = material
+		batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_decor.add_child(batch)
+		_flame_batch_count += 1
+
+
+func _batch_static_decor() -> void:
+	# Join compatible static candle/lantern/picnic parts. Small spatial cells
+	# preserve culling, and matching uniforms preserve the baked room lighting.
+	var groups := {}
+	var sources: Array[MeshInstance3D] = []
+	for source in Kit.meshes(_decor):
+		var mesh: MeshInstance3D = source
+		if mesh.mesh == null or mesh.mesh.get_surface_count() != 1:
+			continue
+		var material := mesh.get_active_material(0) as ShaderMaterial
+		if material == null or material.shader != load("res://scripts/probe_flat.gdshader"):
+			continue
+		var at := mesh.global_position
+		var cell := Vector3i(floori(at.x / 8.0), floori(at.y / 4.0), floori(at.z / 8.0))
+		var key := str([cell, material.get_shader_parameter("albedo"), material.get_shader_parameter("flat_light"), material.get_shader_parameter("shape_shading")])
+		if not groups.has(key):
+			groups[key] = {"material": material, "items": []}
+		groups[key]["items"].append(mesh)
+	for key in groups:
+		var group: Dictionary = groups[key]
+		if group["items"].size() < 2:
+			continue
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for mesh in group["items"]:
+			surface.append_from(mesh.mesh, 0, _decor.global_transform.affine_inverse() * mesh.global_transform)
+			sources.append(mesh)
+		var batch := MeshInstance3D.new()
+		batch.name = "ChillStaticBatch"
+		batch.mesh = surface.commit()
+		batch.material_override = group["material"]
+		batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_decor.add_child(batch)
+		_static_batch_count += 1
+	for source in sources:
+		source.get_parent().remove_child(source)
+		source.queue_free()
 
 
 func _fairy_lights() -> void:
@@ -451,6 +547,8 @@ func _process(dt: float) -> void:
 		if not _flames.is_empty() and not _balloons.is_empty():
 			_flicker(dt)
 		return
+	_budget.update(main.get_viewport(), dt)
+	RenderingServer.global_shader_parameter_set("pekaboo_night_time", Time.get_ticks_msec() / 1000.0)
 	_flicker(dt)
 	# shooting stars every now and then
 	_next_star -= dt
@@ -459,10 +557,10 @@ func _process(dt: float) -> void:
 		_next_star = randf_range(25.0, 50.0)
 	if _shoot >= 0.0:
 		_shoot += dt / 1.4
-		_sky_mat.set_shader_parameter("shoot_t", _shoot)
+		RenderingServer.global_shader_parameter_set("shoot_t", _shoot)
 		if _shoot > 1.0:
 			_shoot = -1.0
-			_sky_mat.set_shader_parameter("shoot_t", -1.0)
+			RenderingServer.global_shader_parameter_set("shoot_t", -1.0)
 	if _song_wait > 0.0:
 		_song_wait -= dt
 		if _song_wait <= 0.0:
@@ -659,7 +757,7 @@ func _tick_fireworks(dt: float) -> void:
 func _particles(pos: Vector3, size: float, amount: int, life: float) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.emitting = false
-	p.amount = amount
+	p.amount = maxi(8, roundi(amount * (0.65 if main.is_touch else 1.0)))
 	p.lifetime = life
 	var q := QuadMesh.new()
 	q.size = Vector2(size, size)
@@ -732,7 +830,7 @@ func _burst(pos: Vector3, c: Color, shape := "ball") -> void:
 			main_p.emission_shape = CPUParticles3D.EMISSION_SHAPE_DIRECTED_POINTS
 			main_p.emission_points = pts
 			main_p.emission_normals = nrm
-			main_p.amount = 180
+			main_p.amount = 120 if main.is_touch else 180
 			main_p.direction = Vector3.RIGHT
 			main_p.spread = 0.0
 			main_p.initial_velocity_min = 7.0

@@ -1,9 +1,10 @@
 extends RefCounted
-## Desktop presentation only; the character, world and rendering stay untouched.
+## Shared game menu, with a roomy touch layout for Android landscape screens.
 
-static func build(u: UI) -> void:
+static func build(u: UI, touch := false) -> void:
 	u.menu = Control.new()
 	u.menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	u.menu.set_meta("touch_layout", touch)
 	u.root.add_child(u.menu)
 	var gradient := GradientTexture2D.new()
 	gradient.gradient = Gradient.new()
@@ -17,7 +18,7 @@ static func build(u: UI) -> void:
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	u.menu.add_child(veil)
 	var brand := VBoxContainer.new()
-	brand.position = Vector2(48, 44)
+	brand.position = Vector2(32, 36) if touch else Vector2(48, 44)
 	brand.add_theme_constant_override("separation", 2)
 	u.menu.add_child(brand)
 	brand.add_child(u._label("READY OR NOT…", 17, Color("#e3c6f7")))
@@ -25,16 +26,16 @@ static func build(u: UI) -> void:
 	logo.texture = load("res://assets/branding/pekaboo_logo.png")
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.custom_minimum_size = Vector2(400, 286)
+	logo.custom_minimum_size = Vector2(350, 230) if touch else Vector2(400, 286)
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var logo_material := ShaderMaterial.new()
 	logo_material.shader = load("res://assets/branding/menu_logo.gdshader")
 	logo.material = logo_material
 	brand.add_child(logo)
-	brand.add_child(u._label("A little mischief. A lot of memories.", 21, Color("#eddbf9")))
+	brand.add_child(u._label("A little mischief.\nA lot of memories." if touch else "A little mischief. A lot of memories.", 21, Color("#eddbf9")))
 	var foot := VBoxContainer.new()
 	foot.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	foot.position = Vector2(48, -94)
+	foot.position = Vector2(32, -96) if touch else Vector2(48, -94)
 	foot.add_theme_constant_override("separation", 8)
 	u.menu.add_child(foot)
 	u.anniv_label = u._label("", 17, Color("#eddbf9"))
@@ -44,11 +45,11 @@ static func build(u: UI) -> void:
 	# A full-height play area with short, switchable pages, rather than one long form.
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	scroll.anchor_left = 0.49
+	scroll.anchor_left = 0.36 if touch else 0.49
 	scroll.offset_left = 0
-	scroll.offset_right = -36
-	scroll.offset_top = 32
-	scroll.offset_bottom = -32
+	scroll.offset_right = -28 if touch else -36
+	scroll.offset_top = 24 if touch else 32
+	scroll.offset_bottom = -24 if touch else -32
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	u.menu.add_child(scroll)
 	var panel := u._card(Color("#20172e"))
@@ -56,24 +57,25 @@ static func build(u: UI) -> void:
 	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(panel)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 14)
+	v.add_theme_constant_override("separation", 10 if touch else 14)
 	panel.add_child(v)
-	v.add_child(u._label("MAKE YOURSELF AT HOME", 17, Color("#c9addc")))
+	if not touch:
+		v.add_child(u._label("MAKE YOURSELF AT HOME", 17, Color("#c9addc")))
 	var profile := HBoxContainer.new()
 	profile.add_theme_constant_override("separation", 12)
 	v.add_child(profile)
 	u.name_edit = u._edit("Your name", 14)
-	u.name_edit.custom_minimum_size.y = 48
+	u.name_edit.custom_minimum_size.y = 56 if touch else 48
 	u.name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	profile.add_child(u.name_edit)
-	var dress := u._btn("Wardrobe", UI.PURPLE, Vector2(132, 48), 20, 14)
+	var dress := u._btn("Wardrobe", UI.PURPLE, Vector2(142, 56) if touch else Vector2(132, 48), 22 if touch else 20, 14)
 	dress.pressed.connect(u.open_wardrobe)
-	dress.tooltip_text = "Wardrobe · F2"
+	dress.tooltip_text = "Choose your outfit" if touch else "Wardrobe · F2"
 	profile.add_child(dress)
 	var chars := HBoxContainer.new()
 	v.add_child(chars)
 	for direction in [-1, 1]:
-		var b := u._btn("‹" if direction == -1 else "›", Color("#49345e"), Vector2(48, 42), 28, 12)
+		var b := u._btn("‹" if direction == -1 else "›", Color("#49345e"), Vector2(60, 52) if touch else Vector2(48, 42), 28, 12)
 		b.pressed.connect(u._cycle_char.bind(direction))
 		b.tooltip_text = "Previous character · [" if direction == -1 else "Next character · ]"
 		if direction == 1:
@@ -89,7 +91,7 @@ static func build(u: UI) -> void:
 	var pages: Array[Control] = []
 	var tab_buttons: Array[Button] = []
 	for title in ["Nearby", "Online", "Solo"]:
-		var tab := u._btn(title, Color("#49345e"), Vector2(0, 48), 21, 14)
+		var tab := u._btn(title, Color("#49345e"), Vector2(0, 56 if touch else 48), 23 if touch else 21, 14)
 		tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tabs.add_child(tab)
 		tab_buttons.append(tab)
@@ -111,7 +113,7 @@ static func build(u: UI) -> void:
 	_action(u, pages[0], "Host a game", "H", UI.PINK, func(): u.lan_host.emit(u._name(), u.char_idx))
 	_action(u, pages[0], "Find a nearby game", "J", UI.BLUE, func(): u.lan_find.emit(u._name(), u.char_idx))
 	u.code_edit = u._edit("4-letter room code", 4)
-	u.code_edit.custom_minimum_size.y = 48
+	u.code_edit.custom_minimum_size.y = 56 if touch else 48
 	pages[1].add_child(u.code_edit)
 	var online := HBoxContainer.new()
 	online.add_theme_constant_override("separation", 10)
@@ -141,18 +143,19 @@ static func build(u: UI) -> void:
 	var bottom := HBoxContainer.new()
 	bottom.add_theme_constant_override("separation", 12)
 	v.add_child(bottom)
-	var settings := u._btn("Settings", Color("#49345e"), Vector2(160, 48), 20, 14)
+	var settings := u._btn("Settings", Color("#49345e"), Vector2(180, 56) if touch else Vector2(160, 48), 22 if touch else 20, 14)
 	settings.tooltip_text = "Settings · F3"
 	settings.pressed.connect(u.open_settings)
 	bottom.add_child(settings)
-	var hint := u._label("F1  Controls   ·   F11  Fullscreen", 15, Color("#c9addc"))
+	var hint := u._label("Play your way. Make memories." if touch else "F1  Controls   ·   F11  Fullscreen", 17 if touch else 15, Color("#c9addc"))
 	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	bottom.add_child(hint)
 
 static func _action(u: UI, parent: Control, text: String, key: String, color: Color, cb: Callable) -> void:
-	var b := u._btn(text, color, Vector2(0, 64), 25, 16)
+	var touch: bool = u.menu.get_meta("touch_layout", false)
+	var b := u._btn(text, color, Vector2(0, 76 if touch else 64), 26 if touch else 25, 16)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.tooltip_text = text + " · " + key
+	b.tooltip_text = text if touch else text + " · " + key
 	b.set_meta("desktop_key", key)
 	b.pressed.connect(cb)
 	parent.add_child(b)

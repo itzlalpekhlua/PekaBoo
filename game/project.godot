@@ -53,3 +53,14 @@ environment/defaults/default_clear_color=Color(0.55, 0.75, 0.95, 1)
 3d/default_cell_size=0.1
 3d/default_cell_height=0.1
 3d/merge_rasterizer_cell_scale=0.001
+
+[shader_globals]
+
+pekaboo_night_time={
+"type": "float",
+"value": 0.0
+}
+shoot_t={
+"type": "float",
+"value": -1.0
+}

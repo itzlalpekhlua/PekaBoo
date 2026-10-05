@@ -496,6 +496,8 @@ func _apply_settings() -> void:
 		_:
 			vp.scaling_3d_scale = 0.95 if is_touch else 1.0
 			vp.anisotropic_filtering_level = Viewport.ANISOTROPY_4X
+	if chill != null and chill.on:
+		chill._budget.reset(vp, is_touch)
 
 
 func _apply_profile(pname: String, idx: int, server := "") -> void:
