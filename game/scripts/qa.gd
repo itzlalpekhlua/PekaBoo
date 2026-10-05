@@ -33,6 +33,22 @@ func run() -> void:
 		await frames(5)
 	await frames(30)
 	print("QA START")
+	if "--latency" in OS.get_cmdline_user_args() + OS.get_cmdline_args():
+		m._on_create("Latency QA", 0, Net.DEFAULT_SERVER)
+		await secs(5.0)
+		check(Net.state == "open" and Net.latency_ms >= 0, "relay round-trip latency is measured")
+		check(m.ui.latency_label.visible and m.ui.latency_label.text == "Ping: %d ms" % Net.latency_ms, "live ping is displayed in milliseconds")
+		Net.close()
+		await frames(2)
+		check(Net.latency_ms == -1 and not m.ui.latency_label.visible, "disconnect clears and hides latency")
+		print("QA DONE passed=%d failed=%d" % [passed, failed])
+		get_tree().quit(1 if failed > 0 else 0)
+		return
+	if "--catch-spots" in OS.get_cmdline_user_args() + OS.get_cmdline_args():
+		await test_catch_under_bed()
+		print("QA DONE passed=%d failed=%d" % [passed, failed])
+		get_tree().quit(1 if failed > 0 else 0)
+		return
 	if "--acts" in OS.get_cmdline_user_args() + OS.get_cmdline_args():
 		await test_explore_actions()
 		await start_bot_round(true)
@@ -77,6 +93,7 @@ func run() -> void:
 	await test_disguises()
 	await test_stairs_and_bounce()
 	await test_settings()
+	await test_catch_under_bed()
 	await test_bot_rounds()
 	await test_traps()
 	await test_round_flow()
@@ -911,6 +928,35 @@ func test_settings() -> void:
 	m.ui._set_bot(2)
 	m.ui._set_bot(1)
 	check(ok, "graphics levels, volume, sensitivity and match rules all apply")
+
+
+func test_catch_under_bed() -> void:
+	await start_bot_round(true)
+	var spot := -1
+	for i in m.house.hide_spots.size():
+		if m.house.hide_spots[i]["name"] == "under the big bed":
+			spot = i
+	check(spot >= 0, "under-bed hiding spot exists")
+	if spot < 0:
+		return
+	var entrance: Vector3 = m.house.hide_spots[spot]["exit"]
+	m.bot.hide_spot = spot
+	m.bot.disguise = ""
+	m.bot.pos = m.house.hide_spots[spot]["cam"] - Vector3(0, 1.35, 0)
+	m.bot.state = "hidden"
+	m.bot._push()
+	me().teleport(entrance - Vector3(0, 3.2, 0), 0.0)
+	await frames(4)
+	check(m._catch_target() == -1, "cannot catch the under-bed bot from downstairs")
+	me().teleport(entrance + Vector3(0, 0, 4), 0.0)
+	await frames(4)
+	check(m._catch_target() == -1, "cannot catch the under-bed bot from outside search range")
+	me().teleport(entrance, 0.0)
+	await frames(4)
+	m.cd.clear()
+	m._do_action("catch")
+	await frames(4)
+	check(m.caught.has(Bot.ID) or m.phase == "results", "Catch finds the bot under the bed from the entrance")
 
 
 func test_bot_rounds() -> void:

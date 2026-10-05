@@ -1814,9 +1814,16 @@ func _catch_target() -> int:
 	var bd := 99.0
 	var eye := me.cam.global_position
 	var aim := me.aim_dir()
+	var near_spot := _near_spot()
 	for id in remotes:
 		var r: RemotePlayer = remotes[id]
-		if id == seeker_id or caught.has(id) or r.hide_spot >= 0:
+		if id == seeker_id or caught.has(id):
+			continue
+		if r.hide_spot >= 0:
+			# Search and Catch both find a hider from the spot's reachable entrance.
+			# Hidden positions can be below the floor, so don't use body height or sight.
+			if r.hide_spot == near_spot:
+				return id
 			continue
 		var to := r.global_position - me.global_position
 		if absf(to.y) > 1.8:
